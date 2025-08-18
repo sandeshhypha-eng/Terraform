@@ -1,0 +1,5 @@
+region       = "us-east-1"
+env          = "prod"
+project_name = "myinfra"
+subnet_id    = "subnet-xxxxxx"
+vpc_id       = "vpc-xxxxxx"
