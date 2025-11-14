@@ -1,0 +1,100 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select environment to destroy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+          - release
+      dev_variant:
+        description: 'Select dev variant (only used when environment=dev)'
+        required: false
+        default: 'dev-a'
+        type: choice
+        options:
+          - dev-a
+          - dev-b
+      confirm_destroy:
+        description: 'Type "DESTROY" to confirm'
+        required: true
+        default: ''
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.0
+
+jobs:
+  validate_destroy:
+    name: 'Validate Destroy Request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ inputs.confirm_destroy }}" != "DESTROY" ]; then
+            echo "❌ Destruction cancelled: Invalid confirmation token"
+            echo "Please provide 'DESTROY' as the confirmation to proceed."
+            exit 1
+          fi
+          echo "✅ Destruction confirmed for ${{ inputs.environment }}"
+
+  terraform_destroy:
+    name: 'Terraform Destroy - ${{ inputs.environment }}'
+    needs: validate_destroy
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Determine environment path
+        id: env_path
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "path=environments/dev" >> $GITHUB_OUTPUT
+            echo "tfvars_file=${{ inputs.dev_variant }}.tfvars" >> $GITHUB_OUTPUT
+            echo "display_env=${{ inputs.dev_variant }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=environments/${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "tfvars_file=terraform.tfvars" >> $GITHUB_OUTPUT
+            echo "display_env=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Init
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform init
+
+      - name: Terraform Destroy
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform destroy -var-file="${{ steps.env_path.outputs.tfvars_file }}" -auto-approve
+
+      - name: Destruction notification
+        run: |
+          echo "## ⚠️ Destruction Complete"
+          echo "Environment: ${{ inputs.environment }}"
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "Variant: ${{ inputs.dev_variant }}"
+          fi
+          echo "Triggered by: ${{ github.actor }}"

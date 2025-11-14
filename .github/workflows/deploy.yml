@@ -1,0 +1,245 @@
+name: Terraform Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+          - release
+      dev_variant:
+        description: 'Select dev variant (only used when environment=dev)'
+        required: false
+        default: 'dev-a'
+        type: choice
+        options:
+          - dev-a
+          - dev-b
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.0
+
+jobs:
+  terraform_plan:
+    name: 'Terraform Plan - ${{ inputs.environment }}'
+    runs-on: ubuntu-latest
+    outputs:
+      tfplan: ${{ steps.plan.outputs.stdout }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Determine environment path
+        id: env_path
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "path=environments/dev" >> $GITHUB_OUTPUT
+            echo "tfvars_file=${{ inputs.dev_variant }}.tfvars" >> $GITHUB_OUTPUT
+            echo "display_env=${{ inputs.dev_variant }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=environments/${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "tfvars_file=terraform.tfvars" >> $GITHUB_OUTPUT
+            echo "display_env=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Init
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform init
+
+      - name: Terraform Format Check
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform fmt -check -recursive
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform plan -var-file="${{ steps.env_path.outputs.tfvars_file }}" -out=tfplan
+          terraform show -json tfplan > tfplan.json
+        continue-on-error: true
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tfplan-${{ steps.env_path.outputs.display_env }}
+          path: ${{ steps.env_path.outputs.path }}/tfplan
+          retention-days: 5
+
+      - name: Post Plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '${{ steps.env_path.outputs.path }}';
+            const planOutput = fs.readFileSync(`${path}/tfplan.json`, 'utf8');
+            const plan = JSON.parse(planOutput);
+            
+            const comment = `## Terraform Plan - ${{ steps.env_path.outputs.display_env }}
+            
+            **Environment**: ${{ steps.env_path.outputs.display_env }}
+            
+            \`\`\`
+            Resources to add: ${plan.resource_changes?.filter(r => r.change.actions.includes('create')).length || 0}
+            Resources to modify: ${plan.resource_changes?.filter(r => r.change.actions.includes('update')).length || 0}
+            Resources to delete: ${plan.resource_changes?.filter(r => r.change.actions.includes('delete')).length || 0}
+            \`\`\``;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  approval:
+    name: 'Approval Required - ${{ inputs.environment }}'
+    if: inputs.environment == 'prod'
+    needs: terraform_plan
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display Plan Summary
+        run: |
+          echo "## 🔒 Production Deployment - Approval Required"
+          echo ""
+          echo "**Environment**: prod"
+          echo "**Triggered by**: ${{ github.actor }}"
+          echo "**Timestamp**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "⏸️ **Waiting for Lead Approval...**"
+          echo ""
+          echo "Your lead must approve this deployment before it proceeds to apply."
+          echo "Check the 'Environment' section at the right to approve or reject."
+
+      - name: Approval Status
+        run: |
+          echo "✅ Production approval stage reached"
+          echo "Workflow will continue to apply step once approved"
+
+  terraform_apply:
+    name: 'Terraform Apply - ${{ inputs.environment }}'
+    needs: [terraform_plan, approval]
+    if: always() && (inputs.environment != 'prod' || needs.approval.result == 'success')
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Determine environment path
+        id: env_path
+        run: |
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "path=environments/dev" >> $GITHUB_OUTPUT
+            echo "tfvars_file=${{ inputs.dev_variant }}.tfvars" >> $GITHUB_OUTPUT
+            echo "display_env=${{ inputs.dev_variant }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=environments/${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "tfvars_file=terraform.tfvars" >> $GITHUB_OUTPUT
+            echo "display_env=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tfplan-${{ steps.env_path.outputs.display_env }}
+          path: ${{ steps.env_path.outputs.path }}
+
+      - name: Terraform Init
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform init
+
+      - name: Terraform Apply
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          terraform apply -auto-approve tfplan
+
+      - name: Terraform Output
+        id: output
+        run: |
+          cd ${{ steps.env_path.outputs.path }}
+          echo "## Deployment Summary for ${{ steps.env_path.outputs.display_env }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: 'Deployment Notification'
+    needs: [terraform_plan, terraform_apply]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Determine job status
+        id: status
+        run: |
+          if [ "${{ inputs.environment }}" = "prod" ] && [ "${{ needs.terraform_apply.result }}" = "skipped" ]; then
+            echo "status=⏸️ Awaiting Approval" >> $GITHUB_OUTPUT
+            echo "message=Waiting for lead approval in the Environment section" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.terraform_apply.result }}" = "success" ]; then
+            echo "status=✅ Success" >> $GITHUB_OUTPUT
+            echo "message=Deployment completed successfully" >> $GITHUB_OUTPUT
+          else
+            echo "status=❌ Failed" >> $GITHUB_OUTPUT
+            echo "message=Deployment failed - check logs for details" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deployment notification
+        run: |
+          echo "## ${{ steps.status.outputs.status }}"
+          echo ""
+          echo "**Environment**: ${{ inputs.environment }}"
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            echo "**Variant**: ${{ inputs.dev_variant }}"
+          fi
+          echo "**Triggered by**: ${{ github.actor }}"
+          echo "**Status**: ${{ steps.status.outputs.message }}"
+          echo ""
+          if [ "${{ inputs.environment }}" = "prod" ] && [ "${{ needs.terraform_apply.result }}" = "skipped" ]; then
+            echo "⏳ **Action Required**: Your lead must approve this production deployment"
+            echo "Go to the workflow run and click 'Approve and deploy' in the Environment section"
+          fi
