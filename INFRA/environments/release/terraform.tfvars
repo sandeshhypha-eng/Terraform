@@ -1,5 +1,0 @@
-region       = "ap-southeast-1"
-env          = "release"
-project_name = "myinfra"
-subnet_id    = "subnet-xxxxxx"
-vpc_id       = "vpc-xxxxxx"
