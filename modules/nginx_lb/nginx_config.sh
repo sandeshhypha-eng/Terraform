@@ -17,14 +17,19 @@ echo ""
 echo "[1/5] Updating system packages..."
 yum update -y 2>&1 | tail -5 || true
 
-# Install Nginx - with verbose output
-echo "[2/5] Installing Nginx..."
-yum install -y nginx 2>&1
+# Install Nginx via Amazon Linux Extras (required for AL2)
+echo "[2/5] Installing Nginx from Amazon Linux Extras..."
+amazon-linux-extras install -y nginx1 2>&1
 if [ $? -eq 0 ]; then
   echo "✓ Nginx installed successfully"
 else
-  echo "✗ Failed to install Nginx"
-  exit 1
+  echo "✗ Failed to install Nginx via amazon-linux-extras"
+  # Fallback: try standard yum install
+  yum install -y nginx 2>&1
+  if [ $? -ne 0 ]; then
+    echo "✗ Failed to install Nginx via yum as well"
+    exit 1
+  fi
 fi
 
 # Verify nginx binary exists
@@ -168,50 +173,59 @@ fi
 # Create a custom index page for Nginx LB
 echo "[BONUS] Creating custom index page..."
 mkdir -p /var/www/html
+
+# Safely write the index file via here-doc so the shell doesn't try to
+# execute HTML lines. Use a quoted delimiter so variables are literal
+# in the script output; Terraform's templatefile() will have already
+# substituted ${web_1_ip} and ${web_2_ip} when generating user_data.
+cat > /var/www/html/index.html <<'INDEX'
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Nginx Load Balancer</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 50px; background-color: #f0f0f0; }
-        .container { background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; }
-        .status { color: green; font-weight: bold; }
-        .info { margin-top: 20px; font-size: 14px; color: #666; }
-    </style>
+  <title>Nginx Load Balancer</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 50px; background-color: #f0f0f0; }
+    .container { background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; }
+    .status { color: green; font-weight: bold; }
+    .info { margin-top: 20px; font-size: 14px; color: #666; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 Nginx Load Balancer</h1>
-        <p class="status">✓ Load Balancer is running and healthy</p>
+  <div class="container">
+    <h1>🚀 Nginx Load Balancer</h1>
+    <p class="status">✓ Load Balancer is running and healthy</p>
         
-        <h2>Configuration</h2>
-        <ul>
-            <li><strong>Role:</strong> Reverse Proxy / Load Balancer</li>
-            <li><strong>Load Balancing Method:</strong> Round-robin</li>
-            <li><strong>Backend Servers:</strong> 2 web servers</li>
-            <li><strong>Health Checks:</strong> Enabled (3 max failures, 30s timeout)</li>
-        </ul>
+    <h2>Configuration</h2>
+    <ul>
+      <li><strong>Role:</strong> Reverse Proxy / Load Balancer</li>
+      <li><strong>Load Balancing Method:</strong> Round-robin</li>
+      <li><strong>Backend Servers:</strong> 2 web servers</li>
+      <li><strong>Health Checks:</strong> Enabled (3 max failures, 30s timeout)</li>
+    </ul>
         
-        <h2>Status Endpoints</h2>
-        <ul>
-            <li><a href="/health">Health Check</a> - Basic health status</li>
-            <li><a href="/nginx_status">Nginx Status</a> - Nginx statistics (localhost only)</li>
-        </ul>
+    <h2>Status Endpoints</h2>
+    <ul>
+      <li><a href="/health">Health Check</a> - Basic health status</li>
+      <li><a href="/nginx_status">Nginx Status</a> - Nginx statistics (localhost only)</li>
+    </ul>
         
-        <h2>How It Works</h2>
-        <p>This Nginx instance acts as a load balancer, distributing incoming requests between two backend web servers using round-robin load balancing. Each request alternates between the two servers.</p>
+    <h2>How It Works</h2>
+    <p>This Nginx instance acts as a load balancer, distributing incoming requests between two backend web servers using round-robin load balancing. Each request alternates between the two servers.</p>
         
-        <div class="info">
-            <p><strong>Backend Servers:</strong></p>
-            <p>Server 1: ${web_1_ip}:80</p>
-            <p>Server 2: ${web_2_ip}:80</p>
-        </div>
+    <div class="info">
+      <p><strong>Backend Servers:</strong></p>
+      <p>Server 1: ${web_1_ip}:80</p>
+      <p>Server 2: ${web_2_ip}:80</p>
     </div>
+  </div>
 </body>
 </html>
 INDEX
 
+# Ensure files are readable by nginx
+chown -R nginx:nginx /var/www/html || true
+chmod -R 755 /var/www/html || true
 echo "✓ Custom index page created"
 
 echo ""

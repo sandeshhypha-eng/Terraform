@@ -33,3 +33,10 @@ variable "environment" {
   description = "Environment name (dev, release, prod)"
   type        = string
 }
+
+variable "key_name" {
+  description = "Name of the SSH key pair to use for Nginx LB instance"
+  type        = string
+  default     = "lc-ec2"
+}
+

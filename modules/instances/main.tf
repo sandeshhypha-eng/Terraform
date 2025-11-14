@@ -31,12 +31,19 @@ variable "environment" {
   type        = string
 }
 
+variable "key_name" {
+  description = "Name of the SSH key pair to use for EC2 instances"
+  type        = string
+  default     = "lc-ec2"
+}
+
 
 // ----------------------------- RESOURCES -----------------------------
 resource "aws_instance" "web_1" {
   ami           = var.ami_id
   instance_type = var.instance_type
   subnet_id     = var.public_subnet_1_id
+  key_name      = var.key_name
 
   vpc_security_group_ids = [var.ec2_security_group_id]
 
@@ -59,6 +66,7 @@ resource "aws_instance" "web_2" {
   ami           = var.ami_id
   instance_type = var.instance_type
   subnet_id     = var.public_subnet_2_id
+  key_name      = var.key_name
 
   vpc_security_group_ids = [var.ec2_security_group_id]
 
