@@ -34,3 +34,20 @@ variable "instance_type" {
   default     = "t2.small"
 }
 
+variable "nginx_instance_type" {
+  description = "EC2 instance type for Nginx load balancer"
+  type        = string
+  default     = "t2.small"
+}
+
+variable "load_balancer_type" {
+  description = "Type of load balancer to use: nginx or alb"
+  type        = string
+  default     = "nginx"
+  
+  validation {
+    condition     = contains(["nginx", "alb"], var.load_balancer_type)
+    error_message = "load_balancer_type must be either 'nginx' or 'alb'"
+  }
+}
+

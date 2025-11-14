@@ -1,6 +1,21 @@
+output "load_balancer_type" {
+  description = "Currently active load balancer type"
+  value       = var.load_balancer_type
+}
+
+output "nginx_lb_public_ip" {
+  description = "Public IP of the Nginx load balancer"
+  value       = try(module.nginx_lb[0].nginx_lb_public_ip, null)
+}
+
+output "nginx_lb_endpoint" {
+  description = "HTTP endpoint to access the application via Nginx LB"
+  value       = try(module.nginx_lb[0].nginx_lb_endpoint, null)
+}
+
 output "alb_dns_name" {
-  description = "The DNS name of the load balancer"
-  value       = module.alb.alb_dns_name
+  description = "The DNS name of the Application Load Balancer"
+  value       = try(module.alb[0].alb_dns_name, null)
 }
 
 output "vpc_id" {

@@ -61,6 +61,38 @@ provider "aws" {
 }
 
 # ============================================================================
+# LOCAL VALUES: Load Balancer Conditional Logic
+# ============================================================================
+# These locals determine which load balancer will be active based on the
+# load_balancer_type variable. They enable simple toggling between solutions
+# without modifying module code.
+#
+# use_nginx_lb: true if load_balancer_type is "nginx"
+# use_alb: true if load_balancer_type is "alb"
+#
+# Usage in Modules: Each module uses count to conditionally create resources
+#   count = local.use_nginx_lb ? 1 : 0  (creates if true, destroys if false)
+#   count = local.use_alb ? 1 : 0       (creates if true, destroys if false)
+#
+# Switching Load Balancers:
+#   To activate ALB: Edit terraform.tfvars and change load_balancer_type = "alb"
+#   To deactivate ALB: Change back to load_balancer_type = "nginx"
+#   Then run: terraform plan (to preview changes)
+#   Then run: terraform apply (to make changes)
+# ============================================================================
+locals {
+  use_nginx_lb = var.load_balancer_type == "nginx"
+  use_alb      = var.load_balancer_type == "alb"
+  
+  # Configuration object summarizing active load balancer
+  lb_config = {
+    type    = var.load_balancer_type
+    nginx   = local.use_nginx_lb
+    alb     = local.use_alb
+  }
+}
+
+# ============================================================================
 # MODULE: Network Infrastructure
 # ============================================================================
 # This module creates the foundational networking components:
@@ -170,52 +202,93 @@ module "instances" {
 }
 
 # ============================================================================
-# MODULE: Application Load Balancer (ALB)
+# MODULE: Nginx Load Balancer (Alternative to ALB)
 # ============================================================================
-# This module creates an Application Load Balancer that distributes incoming
-# web traffic across the two EC2 instances.
+# This module creates an EC2 instance with Nginx configured as a reverse proxy
+# and load balancer. This is used when ALB is not available due to account
+# restrictions.
 #
 # Resources Created:
-#   - Application Load Balancer (internet-facing)
-#   - Target Group (defines which instances receive traffic)
-#   - Target Group Attachments (connects instances to target group)
-#   - Listener (accepts HTTP traffic on port 80)
+#   - EC2 Instance with Nginx installed and configured
+#   - Nginx configured as reverse proxy
+#   - Load balancing between web servers 1 and 2
+#   - Health checks for backend servers
 #
-# Module Source: "../../modules/alb" - Relative path to the ALB module
+# Module Source: "../../modules/nginx_lb" - Relative path to the nginx_lb module
 #
 # Input Variables:
-#   - vpc_id: VPC where ALB will be created (from network module)
-#   - public_subnet_1_id: First subnet for ALB (from network module)
-#   - public_subnet_2_id: Second subnet for ALB (from network module)
-#   - alb_security_group_id: Security group for ALB (from security module)
-#   - web_1_instance_id: First EC2 instance to attach (from instances module)
-#   - web_2_instance_id: Second EC2 instance to attach (from instances module)
+#   - ami_id: Amazon Machine Image ID (from network module)
+#   - instance_type: EC2 instance type for Nginx (t2.micro default)
+#   - public_subnet_id: Subnet for Nginx LB (from network module)
+#   - nginx_security_group_id: Security group for Nginx (from security module)
+#   - web_1_private_ip: Private IP of web server 1 (from instances module)
+#   - web_2_private_ip: Private IP of web server 2 (from instances module)
 #   - environment: Environment name for naming
 #
 # How It Works:
-#   1. Internet traffic arrives at ALB's public DNS name
-#   2. ALB performs health checks on both instances
-#   3. ALB distributes traffic to healthy instances
-#   4. If one instance fails, traffic automatically goes to the other
+#   1. Internet traffic arrives at Nginx LB's public IP
+#   2. Nginx performs health checks on both backend servers
+#   3. Uses round-robin to distribute traffic between servers
+#   4. Automatically handles failed backend servers
 #
 # Outputs:
-#   - module.alb.alb_dns_name: Public URL to access the application
-#     This is displayed after terraform apply completes
+#   - module.nginx_lb.nginx_lb_public_ip: Public IP to access the application
+#   - module.nginx_lb.nginx_lb_public_dns: Public DNS to access the application
+#
+# Dependencies:
+#   - Requires network module (for subnets and AMI)
+#   - Requires security module (for Nginx security group)
+#   - Requires instances module (for backend server private IPs)
+# ============================================================================
+module "nginx_lb" {
+  source = "../../modules/nginx_lb"
+  count  = local.use_nginx_lb ? 1 : 0
+
+  ami_id                   = module.network.amazon_linux_2_ami_id
+  instance_type            = var.nginx_instance_type
+  public_subnet_id         = module.network.public_subnet_1_id
+  nginx_security_group_id  = module.security.nginx_lb_security_group_id
+  web_1_private_ip         = module.instances.web_1_private_ip
+  web_2_private_ip         = module.instances.web_2_private_ip
+  environment              = var.environment
+}
+
+# ============================================================================
+# MODULE: Application Load Balancer (Alternative to Nginx)
+# ============================================================================
+# This module creates an AWS Application Load Balancer (ALB) to distribute
+# traffic between the web servers. This is currently disabled (count = 0) due to
+# AWS account restrictions, but the code is preserved for future use.
+#
+# IMPORTANT: When ALB becomes available in your AWS account:
+#   1. Edit terraform.tfvars
+#   2. Change: load_balancer_type = "alb"
+#   3. Run: terraform plan (to preview changes)
+#   4. Verify Nginx LB will be destroyed and ALB will be created
+#   5. Run: terraform apply (to make the change)
+#
+# Resources Created (when enabled):
+#   - Application Load Balancer
+#   - Target group for web servers
+#   - Health check configuration
+#   - Listener on port 80
+#
+# Module Source: "../../modules/alb" - Relative path to the ALB module
 #
 # Dependencies:
 #   - Requires network module (for VPC and subnets)
 #   - Requires security module (for ALB security group)
-#   - Requires instances module (for EC2 instance IDs)
+#   - Requires instances module (for EC2 instance IDs to register as targets)
 # ============================================================================
 module "alb" {
   source = "../../modules/alb"
+  count  = local.use_alb ? 1 : 0
 
-  vpc_id                = module.network.vpc_id
-  public_subnet_1_id    = module.network.public_subnet_1_id
-  public_subnet_2_id    = module.network.public_subnet_2_id
-  alb_security_group_id = module.security.alb_security_group_id
-  web_1_instance_id     = module.instances.web_1_instance_id
-  web_2_instance_id     = module.instances.web_2_instance_id
-  environment           = var.environment
+  vpc_id                 = module.network.vpc_id
+  alb_security_group_id  = module.security.alb_security_group_id
+  public_subnet_1_id     = module.network.public_subnet_1_id
+  public_subnet_2_id     = module.network.public_subnet_2_id
+  web_1_instance_id      = module.instances.web_1_instance_id
+  web_2_instance_id      = module.instances.web_2_instance_id
+  environment            = var.environment
 }
-

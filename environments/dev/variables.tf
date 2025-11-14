@@ -108,3 +108,47 @@ variable "instance_type" {
   default     = "t2.micro"
 }
 
+# ============================================================================
+# VARIABLE: Nginx Load Balancer Instance Type
+# ============================================================================
+# The EC2 instance type for the Nginx load balancer instance.
+#
+# For dev environment: Typically "t2.micro" or "t2.small"
+# For release: Typically "t2.small"
+# For prod: Typically "t2.medium" or larger
+#
+# Set in: terraform.tfvars file for this environment
+# ============================================================================
+variable "nginx_instance_type" {
+  description = "EC2 instance type for Nginx load balancer"
+  type        = string
+  default     = "t2.micro"
+}
+
+# ============================================================================
+# VARIABLE: Load Balancer Configuration
+# ============================================================================
+# Controls which load balancer is active (Nginx or ALB)
+# 
+# Options:
+#   - "nginx": Use Nginx EC2 instance as load balancer (currently active)
+#   - "alb": Use AWS Application Load Balancer (when account allows)
+#
+# To switch in the future:
+#   1. Change this value to "alb"
+#   2. Run: terraform plan
+#   3. Review and run: terraform apply
+#
+# Set in: terraform.tfvars file for this environment
+# ============================================================================
+variable "load_balancer_type" {
+  description = "Type of load balancer to use: nginx or alb"
+  type        = string
+  default     = "nginx"
+  
+  validation {
+    condition     = contains(["nginx", "alb"], var.load_balancer_type)
+    error_message = "load_balancer_type must be either 'nginx' or 'alb'"
+  }
+}
+

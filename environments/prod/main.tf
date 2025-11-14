@@ -62,6 +62,20 @@ provider "aws" {
 }
 
 # ============================================================================
+# LOCAL: Determine which load balancer to use
+# ============================================================================
+locals {
+  use_nginx_lb = var.load_balancer_type == "nginx"
+  use_alb      = var.load_balancer_type == "alb"
+  
+  lb_config = {
+    type    = var.load_balancer_type
+    nginx   = local.use_nginx_lb
+    alb     = local.use_alb
+  }
+}
+
+# ============================================================================
 # MODULE: Network Infrastructure
 # ============================================================================
 # This module creates the foundational networking components:
@@ -170,43 +184,27 @@ module "instances" {
   environment           = var.environment
 }
 
+module "nginx_lb" {
+  source = "../../modules/nginx_lb"
+
+  ami_id                   = module.network.amazon_linux_2_ami_id
+  instance_type            = var.nginx_instance_type
+  public_subnet_id         = module.network.public_subnet_1_id
+  nginx_security_group_id  = module.security.nginx_lb_security_group_id
+  web_1_private_ip         = module.instances.web_1_private_ip
+  web_2_private_ip         = module.instances.web_2_private_ip
+  environment              = var.environment
+
+  count = local.use_nginx_lb ? 1 : 0
+}
+
 # ============================================================================
-# MODULE: Application Load Balancer (ALB)
+# MODULE: Application Load Balancer (ALB) - CURRENTLY DISABLED
 # ============================================================================
-# This module creates an Application Load Balancer that distributes incoming
-# web traffic across the two EC2 instances.
+# This module is disabled using count = 0 but kept in configuration for easy
+# future activation when ALB becomes available in your AWS account.
 #
-# Resources Created:
-#   - Application Load Balancer (internet-facing)
-#   - Target Group (defines which instances receive traffic)
-#   - Target Group Attachments (connects instances to target group)
-#   - Listener (accepts HTTP traffic on port 80)
-#
-# Module Source: "../../modules/alb" - Relative path to the ALB module
-#
-# Input Variables:
-#   - vpc_id: VPC where ALB will be created (from network module)
-#   - public_subnet_1_id: First subnet for ALB (from network module)
-#   - public_subnet_2_id: Second subnet for ALB (from network module)
-#   - alb_security_group_id: Security group for ALB (from security module)
-#   - web_1_instance_id: First EC2 instance to attach (from instances module)
-#   - web_2_instance_id: Second EC2 instance to attach (from instances module)
-#   - environment: Environment name for naming
-#
-# How It Works:
-#   1. Internet traffic arrives at ALB's public DNS name
-#   2. ALB performs health checks on both instances
-#   3. ALB distributes traffic to healthy instances
-#   4. If one instance fails, traffic automatically goes to the other
-#
-# Outputs:
-#   - module.alb.alb_dns_name: Public URL to access the application
-#     This is displayed after terraform apply completes
-#
-# Dependencies:
-#   - Requires network module (for VPC and subnets)
-#   - Requires security module (for ALB security group)
-#   - Requires instances module (for EC2 instance IDs)
+# To switch: Update load_balancer_type = "alb" in terraform.tfvars
 # ============================================================================
 module "alb" {
   source = "../../modules/alb"
@@ -218,5 +216,7 @@ module "alb" {
   web_1_instance_id     = module.instances.web_1_instance_id
   web_2_instance_id     = module.instances.web_2_instance_id
   environment           = var.environment
+
+  count = local.use_alb ? 1 : 0
 }
 
