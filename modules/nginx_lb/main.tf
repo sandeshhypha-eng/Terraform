@@ -18,10 +18,13 @@ resource "aws_instance" "nginx_lb" {
   associate_public_ip_address = true
 
   # User data script to install and configure Nginx
-  user_data = base64encode(templatefile("${path.module}/nginx_config.sh", {
-    web_1_ip = var.web_1_private_ip
-    web_2_ip = var.web_2_private_ip
-  }))
+  # IMPORTANT: templatefile() MUST come before base64encode() so variables are substituted first
+  user_data = base64encode(
+    templatefile("${path.module}/nginx_config.sh", {
+      web_1_ip = var.web_1_private_ip
+      web_2_ip = var.web_2_private_ip
+    })
+  )
 
   tags = {
     Name        = "${var.environment}-nginx-lb"

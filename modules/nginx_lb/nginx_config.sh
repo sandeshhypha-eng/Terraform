@@ -2,13 +2,41 @@
 # Nginx Load Balancer Configuration Script
 # This script installs and configures Nginx as a reverse proxy/load balancer
 
-set -e
+# Enable logging to system logs
+exec > >(tee /var/log/nginx_install.log)
+exec 2>&1
+
+echo "======================================================"
+echo "Starting Nginx Load Balancer Configuration"
+echo "======================================================"
+echo "Timestamp: $(date)"
+echo "Hostname: $(hostname)"
+echo ""
 
 # Update system packages
-yum update -y
-yum install -y nginx
+echo "[1/5] Updating system packages..."
+yum update -y 2>&1 | tail -5 || true
+
+# Install Nginx - with verbose output
+echo "[2/5] Installing Nginx..."
+yum install -y nginx 2>&1
+if [ $? -eq 0 ]; then
+  echo "✓ Nginx installed successfully"
+else
+  echo "✗ Failed to install Nginx"
+  exit 1
+fi
+
+# Verify nginx binary exists
+if ! command -v nginx &> /dev/null; then
+  echo "✗ Nginx binary not found after installation"
+  exit 1
+fi
+echo "✓ Nginx binary found at: $(which nginx)"
+echo "✓ Nginx version: $(nginx -v 2>&1)"
 
 # Create Nginx configuration for load balancing
+echo "[3/5] Creating Nginx configuration..."
 cat > /etc/nginx/nginx.conf <<'NGINX_CONFIG'
 user nginx;
 worker_processes auto;
@@ -92,13 +120,54 @@ http {
 }
 NGINX_CONFIG
 
+echo "✓ Nginx configuration created"
+
+# Verify configuration syntax
+echo "[4/5] Verifying Nginx configuration syntax..."
+nginx -t 2>&1
+if [ $? -eq 0 ]; then
+  echo "✓ Nginx configuration syntax is valid"
+else
+  echo "✗ Nginx configuration has errors"
+  exit 1
+fi
+
 # Enable and start Nginx
+echo "[5/5] Starting Nginx service..."
 systemctl daemon-reload
+if [ $? -ne 0 ]; then
+  echo "✗ Failed to reload systemd"
+  exit 1
+fi
+
 systemctl enable nginx
+if [ $? -ne 0 ]; then
+  echo "✗ Failed to enable nginx"
+  exit 1
+fi
+
 systemctl start nginx
+if [ $? -eq 0 ]; then
+  echo "✓ Nginx service started successfully"
+else
+  echo "✗ Failed to start nginx"
+  systemctl status nginx || true
+  exit 1
+fi
+
+# Verify nginx is running
+sleep 2
+if systemctl is-active --quiet nginx; then
+  echo "✓ Nginx is running"
+else
+  echo "✗ Nginx is not running"
+  systemctl status nginx || true
+  exit 1
+fi
 
 # Create a custom index page for Nginx LB
-cat > /var/www/html/index.html <<'INDEX'
+echo "[BONUS] Creating custom index page..."
+mkdir -p /var/www/html
 <!DOCTYPE html>
 <html>
 <head>
@@ -143,8 +212,18 @@ cat > /var/www/html/index.html <<'INDEX'
 </html>
 INDEX
 
-# Log successful startup
-echo "Nginx Load Balancer successfully configured and started"
+echo "✓ Custom index page created"
+
+echo ""
+echo "======================================================"
+echo "Nginx Load Balancer Configuration Complete!"
+echo "======================================================"
 echo "Backend servers configured:"
 echo "  - Server 1: ${web_1_ip}:80"
 echo "  - Server 2: ${web_2_ip}:80"
+echo ""
+echo "Access logs: /var/log/nginx/lb_access.log"
+echo "Error logs: /var/log/nginx/lb_error.log"
+echo "Nginx status: $(systemctl is-active nginx)"
+echo "Timestamp: $(date)"
+echo "======================================================"
