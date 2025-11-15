@@ -43,7 +43,7 @@ variable "nginx_instance_type" {
 variable "load_balancer_type" {
   description = "Type of load balancer to use: nginx or alb"
   type        = string
-  default     = "nginx"
+  default     = "alb"
   
   validation {
     condition     = contains(["nginx", "alb"], var.load_balancer_type)
