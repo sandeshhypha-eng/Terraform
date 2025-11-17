@@ -14,11 +14,11 @@
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
-  default     = "ap-south-1"
+  default     = "us-east-1"
 }
 
 # ============================================================================
-# VARIABLE: Environment
+# VARIABLE: Environment terraform apply -dev-a.tfvars
 # ============================================================================
 # The environment name (e.g., "dev", "release", "prod").
 # This is used throughout the configuration for:
