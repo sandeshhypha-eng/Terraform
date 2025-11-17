@@ -1,4 +1,4 @@
-aws_region          = "us-east-1"
+aws_region          = "ap-south-1"
 environment         = "dev-b"
 vpc_cidr            = "10.4.0.0/16"
 public_subnet_1_cidr = "10.4.1.0/24"
