@@ -1,0 +1,5 @@
+region        = "ap-southeast-2"
+tag1          = "this is created from terraform for prod"
+bucket_name   = "bucket-demo-terraform-hypha-prod"
+ami           = "ami-0296bce20908d4ab5"  # Original AMI in ap-southeast-2
+instance_type = "t3.micro"

@@ -10,17 +10,37 @@ terraform {
 
 # Configure the AWS Provider
 provider "aws" {
-  region = "ap-southeast-2"
+  region = var.region
+}
+
+variable "region" {
+  type        = string
+  description = "AWS region"
 }
 
 variable "tag1" {
   type        = string
-  default     = "this is created from terrform for dev"
+  description = "Tag for resources"
+}
+
+variable "bucket_name" {
+  type        = string
+  description = "Name of the S3 bucket"
+}
+
+variable "ami" {
+  type        = string
+  description = "AMI ID for the EC2 instance"
+}
+
+variable "instance_type" {
+  type        = string
+  description = "Instance type for the EC2 instance"
 }
 
 resource "aws_instance" "demo_ec2" {
-    ami           = "ami-0296bce20908d4ab5"
-    instance_type = "t3.micro"
+    ami           = var.ami
+    instance_type = var.instance_type
 
     lifecycle {
         create_before_destroy = true
@@ -33,7 +53,7 @@ resource "aws_instance" "demo_ec2" {
     }
     }
 resource "aws_s3_bucket" "demo_s3" {
-  bucket = "bucket-demo-terraform-hypha"
+  bucket = var.bucket_name
   bucket_namespace = "global"
 
     tags = {
