@@ -38,7 +38,7 @@ variable "instance_type" {
 
 # Call the EC2 module
 module "ec2" {
-  source = "../modules/ec2"
+  source = "./modules/ec2"
 
   ami           = var.ami
   instance_type = var.instance_type
@@ -47,7 +47,7 @@ module "ec2" {
 
 # Call the S3 module
 module "s3" {
-  source = "../modules/s3"
+  source = "./modules/s3"
 
   bucket_name = var.bucket_name
   tag1        = var.tag1

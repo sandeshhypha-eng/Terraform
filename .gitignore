@@ -3,7 +3,20 @@
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+.terraform.tfstate.lock.hcl
+terraform.tfstate.d/
+*.tfplan
 
+# Backup files
+*.bak
+terraform-backup-*.tar.gz
 
 # OS
 .DS_Store
+*.swp
+*.swo
+*~
+
+# IDEs
+.idea/
+.vscode/
