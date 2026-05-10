@@ -8,6 +8,13 @@ terraform {
   }
 }
 
+# Yogesh
+resource "random_string" "random_string_for_s3_bucket" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
 variable "country" {
   type = string
 }
@@ -37,7 +44,7 @@ resource "aws_instance" "demo_ec2" {
     }
     }
 resource "aws_s3_bucket" "demo_s3" {
-  bucket = "bucket-demo-terraform-hypha"
+  bucket = "bucket-demo-terraform-hypha-${random_string.random_string_for_s3_bucket.result}"
   bucket_namespace = "global"
 
     tags = {
