@@ -8,25 +8,29 @@ terraform {
   }
 }
 
+variable "country" {
+  type = string
+}
+
+variable "os" {
+  type = string
+}
+
 # Configure the AWS Provider
 provider "aws" {
-  region = "ap-southeast-2"
+  region = var.country
 }
 
 variable "tag1" {
   type        = string
-  default     = "this is created from terrform for dev"
 }
 
+variable "machine_type" {
+  type        = string
+}
 resource "aws_instance" "demo_ec2" {
-    ami           = "ami-0296bce20908d4ab5"
-    instance_type = "t3.micro"
-
-    lifecycle {
-        create_before_destroy = true
-        prevent_destroy = true
-        ignore_changes = [tags]
-    }
+    ami           = var.os
+    instance_type = var.machine_type
 
     tags = {
         Name = var.tag1

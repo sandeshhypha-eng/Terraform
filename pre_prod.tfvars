@@ -1,0 +1,4 @@
+country = "us-east-1"
+os = "ami-0a59ec92177ec3fad"
+tag1 = "pre-prod-instance"
+machine_type = "t2.micro"
