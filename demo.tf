@@ -6,7 +6,14 @@ terraform {
       version = "~> 6.0"
     }
   }
+  backend "s3" {
+    bucket = "devhyphastatefile"
+    key    = "yogesh/dev.tfstate"
+    region = "ap-south-1"
+    use_lockfile = true 
+  }
 }
+
 
 # Yogesh
 resource "random_string" "random_string_for_s3_bucket" {
@@ -38,6 +45,7 @@ variable "machine_type" {
 resource "aws_instance" "demo_ec2" {
     ami           = var.os
     instance_type = var.machine_type
+    count = 2
 
     tags = {
         Name = var.tag1
@@ -77,9 +85,11 @@ resource "aws_s3_bucket_versioning" "versioning_example" {
 
 
 output "instance_id" {
-  value = aws_instance.demo_ec2.id
+  value = aws_instance.demo_ec2[*].id
 }
 output "instance_public_ip" {
-  value = aws_instance.demo_ec2.public_ip
+  value = aws_instance.demo_ec2[*].public_ip
 }     
-
+output "instance_private_ip" {
+  value = {for i, ips in aws_instance.demo_ec2 : i => ips.private_ip}
+}
