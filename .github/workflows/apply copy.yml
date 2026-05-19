@@ -1,4 +1,4 @@
-name: Terraform Plan & Apply (Legacy)
+name: Terraform Plan & Apply (enterprise)
 
 on:
   workflow_dispatch:

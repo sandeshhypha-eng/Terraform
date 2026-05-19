@@ -1,4 +1,4 @@
-name: Terraform Plan & Apply (Legacy)
+name: Terraform Plan & Apply
 
 on:
   workflow_dispatch:
@@ -20,9 +20,9 @@ env:
 
 jobs:
   terraform-plan:
-    name: Terraform Plan (${{ github.event.inputs.environment }}.tfvars)
+    name: Terraform Plan (${{ github.event.inputs.environment }})
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -30,7 +30,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -48,37 +48,13 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan (dev)
-        if: github.event.inputs.environment == 'dev'
+      - name: Terraform Plan
         run: |
           terraform plan \
-            -var-file=dev.tfvars \
+            -var-file=${{ github.event.inputs.environment }}.tfvars \
             -out=tfplan \
-            -lock=true
-
-      - name: Terraform Plan (test)
-        if: github.event.inputs.environment == 'test'
-        run: |
-          terraform plan \
-            -var-file=test.tfvars \
-            -out=tfplan \
-            -lock=true
-
-      - name: Terraform Plan (pre_prod)
-        if: github.event.inputs.environment == 'pre_prod'
-        run: |
-          terraform plan \
-            -var-file=pre_prod.tfvars \
-            -out=tfplan \
-            -lock=true
-
-      - name: Terraform Plan (prod)
-        if: github.event.inputs.environment == 'prod'
-        run: |
-          terraform plan \
-            -var-file=prod.tfvars \
-            -out=tfplan \
-            -lock=true
+            -lock=true \
+            -input=false
 
       - name: Save Plan Artifact
         uses: actions/upload-artifact@v4
@@ -88,12 +64,13 @@ jobs:
           retention-days: 1
 
   terraform-apply:
-    name: Terraform Apply (${{ github.event.inputs.environment }}.tfvars)
+    name: Terraform Apply (${{ github.event.inputs.environment }})
     runs-on: ubuntu-latest
     needs: terraform-plan
+
     environment:
       name: ${{ github.event.inputs.environment }}
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -101,7 +78,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.5.0
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -118,32 +95,7 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Apply (dev)
-        if: github.event.inputs.environment == 'dev'
-        run: |
-          terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Terraform Apply (test)
-        if: github.event.inputs.environment == 'test'
-        run: |
-          terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Terraform Apply (pre_prod)
-        if: github.event.inputs.environment == 'pre_prod'
-        run: |
-          terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Terraform Apply (prod)
-        if: github.event.inputs.environment == 'prod'
+      - name: Terraform Apply
         run: |
           terraform apply \
             -lock=true \

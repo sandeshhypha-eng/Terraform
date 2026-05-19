@@ -1,5 +1,4 @@
-name: Terraform CI/CD Apply
-
+name: terrafrom ci/cd apply
 on:
   workflow_dispatch:
     inputs:
@@ -14,147 +13,89 @@ on:
           - pre_prod
           - prod
 
-env:
-  AWS_REGION: ap-south-1
-  TERRAFORM_VERSION: '1.5.0'
 
 jobs:
-  terraform-plan:
-    name: Terraform Plan (${{ github.event.inputs.environment }}.tfvars)
+  plan:
+    name: terrform plan
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
+    - uses: hashicorp/setup-terraform@v4  
+    - uses: actions/checkout@v6
+    - name: Configure AWS Credentials
+    -  uses: aws-actions/configure-aws-credentials@v6.1.0
+      with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive || true
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        run: terraform validate
-
-      - name: Terraform Plan (dev)
-        if: github.event.inputs.environment == 'dev'
-        run: |
+          aws-region: us-east-2
+    - run: terraform init
+    - name: Terraform Plan (dev)
+      if: github.event.inputs.environment == 'dev'
+      run: |
           terraform plan \
             -var-file=dev.tfvars \
             -out=tfplan \
             -lock=true
-
-      - name: Terraform Plan (test)
-        if: github.event.inputs.environment == 'test'
-        run: |
+    - name: Terraform Plan (test)
+      if: github.event.inputs.environment == 'test'
+      run: |
           terraform plan \
             -var-file=test.tfvars \
             -out=tfplan \
             -lock=true
-
-      - name: Terraform Plan (pre_prod)
-        if: github.event.inputs.environment == 'pre_prod'
-        run: |
+    - name: Terraform Plan ( pre_prod)
+      if: github.event.inputs.environment == 'pre_prod'
+      run: |
           terraform plan \
             -var-file=pre_prod.tfvars \
             -out=tfplan \
             -lock=true
-
-      - name: Terraform Plan (prod)
-        if: github.event.inputs.environment == 'prod'
-        run: |
+    - name: Terraform Plan (prod)
+      if: github.event.inputs.environment == 'prod'
+      run: |
           terraform plan \
             -var-file=prod.tfvars \
             -out=tfplan \
-            -lock=true
-
-      - name: Save Plan Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan-${{ github.event.inputs.environment }}
-          path: tfplan
-          retention-days: 1
-
-  terraform-apply:
-    name: Terraform Apply (${{ github.event.inputs.environment }}.tfvars)
+            -lock=true            
+  apply:  
+    name: terrform apply
     runs-on: ubuntu-latest
-    needs: terraform-plan
-    environment:
-      name: ${{ github.event.inputs.environment }}
-    
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.0
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
+    - uses: hashicorp/setup-terraform@v6  
+    - uses: actions/checkout@v4
+    - name: Configure AWS Credentials
+    -  uses: aws-actions/configure-aws-credentials@v6.1.0
+      with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Download Plan Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan-${{ github.event.inputs.environment }}
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Apply (dev)
-        if: github.event.inputs.environment == 'dev'
-        run: |
+          aws-region: us-east-2
+    - run: terraform init
+    - name: Terraform apply (dev)
+      if: github.event.inputs.environment == 'dev'
+      run: |
           terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Terraform Apply (test)
-        if: github.event.inputs.environment == 'test'
-        run: |
+            -var-file=dev.tfvars \
+            -out=tfplan \
+            -lock=true
+    - name: Terraform apply  (test)
+      if: github.event.inputs.environment == 'test'
+      run: |
           terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Terraform Apply (pre_prod)
-        if: github.event.inputs.environment == 'pre_prod'
-        run: |
+            -var-file=test.tfvars \
+            -out=tfplan \
+            -lock=true
+    - name: Terraform apply  ( pre_prod)
+      if: github.event.inputs.environment == 'pre_prod'
+      run: |
           terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Terraform Apply (prod)
-        if: github.event.inputs.environment == 'prod'
-        run: |
+            -var-file=pre_prod.tfvars \
+            -out=tfplan \
+            -lock=true
+    - name: Terraform apply (prod)
+      if: github.event.inputs.environment == 'prod'
+      run: |
           terraform apply \
-            -lock=true \
-            -input=false \
-            tfplan
-
-      - name: Export Outputs
-        run: terraform output -json > outputs.json
-
-      - name: Upload Outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-outputs-${{ github.event.inputs.environment }}
-          path: outputs.json
+            -var-file=prod.tfvars \
+            -out=tfplan \
+            -lock=true 
