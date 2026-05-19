@@ -8,7 +8,7 @@ terraform {
   }
   backend "s3" {
     bucket = "devhyphastatefile"
-    key    = "yogesh/dev.tfstate"
+    key    = var.statefilekey
     region = "ap-south-1"
   }
 }
@@ -24,7 +24,9 @@ resource "random_string" "random_string_for_s3_bucket" {
 variable "country" {
   type = string
 }
-
+variable "statefilekey" {
+  type = string
+}
 variable "os" {
   type = string
 }
