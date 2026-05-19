@@ -10,7 +10,6 @@ terraform {
     bucket = "devhyphastatefile"
     key    = "yogesh/dev.tfstate"
     region = "ap-south-1"
-    use_lockfile = true 
   }
 }
 
