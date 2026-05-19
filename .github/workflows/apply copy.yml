@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        
+
       - name: snykscan
         uses: snyk/actions/iac@master
         env:
@@ -88,6 +88,19 @@ jobs:
           name: tfplan-${{ github.event.inputs.environment }}
           path: tfplan
           retention-days: 1
+
+     
+  Approval:
+      name: Request approval
+      uses: thomasvjoseph/manual-approval@v1.0.1
+      with:
+          INPUT_TITLE: "Manual Approval Request"
+          INPUT_BODY: "Please approve or reject by commenting 'yes' or 'no'."
+          INPUT_ASSIGNEES: "sandeshhypha-eng,yogeshrajmane1983"
+          INPUT_MIN_APPROVERS: 1
+          INPUT_TIMEOUT: 10
+
+
 
   terraform-apply:
     name: Terraform Apply (${{ github.event.inputs.environment }}.tfvars)
