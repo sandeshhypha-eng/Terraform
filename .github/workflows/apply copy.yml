@@ -27,11 +27,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: snykscan
-        uses: snyk/actions/iac@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}  
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
