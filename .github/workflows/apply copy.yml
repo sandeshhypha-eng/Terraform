@@ -40,7 +40,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend-config="key=yogesh/${{ github.event.inputs.environment }}.tfstate"
 
       - name: Terraform Validate
         run: terraform validate
@@ -111,7 +111,7 @@ jobs:
           name: tfplan-${{ github.event.inputs.environment }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend-config="key=yogesh/${{ github.event.inputs.environment }}.tfstate"
 
       - name: Terraform Apply
         run: |
