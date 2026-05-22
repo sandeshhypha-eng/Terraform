@@ -8,4 +8,4 @@ nginx_instance_type = "t2.small"
 
 # Load Balancer Configuration
 # Options: "nginx" (currently active) or "alb" (for future use)
-load_balancer_type  = "alb"
+load_balancer_type  = "nginx"           
