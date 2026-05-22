@@ -17,7 +17,7 @@ terraform {
   required_version = ">= 1.0"
   
   backend "s3" {
-    bucket         = "git-hpha-terraform-state-v2"
+    bucket         = "git-hpha-terraform-state-prodv2"
     key            = "terraformv2/environments/prod/terraform.tfstate"
     region         = "ap-south-1"
     encrypt        = true
