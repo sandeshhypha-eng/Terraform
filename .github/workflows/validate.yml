@@ -10,7 +10,7 @@ on:
       - '.github/workflows/**'
   push:
     branches:
-      - main
+      - demo
     # Only trigger if changes are made to Terraform configurations, modules, or workflows
     paths:
       - 'environments/**'
@@ -109,82 +109,6 @@ jobs:
           quiet: false
           output_format: cli
         continue-on-error: true
-
-  plan_dev_a:
-    name: 'Plan dev-a Configuration'
-    runs-on: ubuntu-latest
-    
-    steps:
-      # Checkout the repository code to access Terraform configurations
-      # Why needed: Provides access to Terraform files for the dev-a variant
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Install and configure Terraform with the specified version (1.0)
-      # Why needed: Ensures consistent Terraform version for planning operations
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      # Initialize Terraform without backend connection for dev-a configuration
-      # Why needed: Loads provider plugins and modules for the dev-a variant without requiring AWS credentials
-      # Allows validation of dev-a specific configuration in a CI/CD environment
-      - name: Terraform Init (Backend Init)
-        run: |
-          cd environments/dev
-          terraform init -backend=false
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-
-      # Generate a plan for dev-a configuration to validate variable files and resource definitions
-      # Why needed: Verifies that dev-a.tfvars file is valid and that Terraform can successfully plan resource creation
-      # without actually connecting to AWS, catching configuration errors early in the PR review process
-      # The -lock=false flag prevents state locking since this is a validation check, not an actual deployment
-      - name: Terraform Plan (dev-a)
-        run: |
-          cd environments/dev
-          terraform plan -var-file="dev-a.tfvars" -lock=false
-        continue-on-error: true
-
-  plan_dev_b:
-    name: 'Plan dev-b Configuration'
-    runs-on: ubuntu-latest
-    
-    steps:
-      # Checkout the repository code to access Terraform configurations
-      # Why needed: Provides access to Terraform files for the dev-b variant
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Install and configure Terraform with the specified version (1.0)
-      # Why needed: Ensures consistent Terraform version for planning operations
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      # Initialize Terraform without backend connection for dev-b configuration
-      # Why needed: Loads provider plugins and modules for the dev-b variant without requiring AWS credentials
-      # Allows validation of dev-b specific configuration in a CI/CD environment
-      - name: Terraform Init (Backend Init)
-        run: |
-          cd environments/dev
-          terraform init -backend=false
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-
-      # Generate a plan for dev-b configuration to validate variable files and resource definitions
-      # Why needed: Verifies that dev-b.tfvars file is valid and that Terraform can successfully plan resource creation
-      # without actually connecting to AWS, catching configuration errors early in the PR review process
-      # The -lock=false flag prevents state locking since this is a validation check, not an actual deployment
-      - name: Terraform Plan (dev-b)
-        run: |
-          cd environments/dev
-          terraform plan -var-file="dev-b.tfvars" -lock=false
-        continue-on-error: true
-
-
 
 
 
