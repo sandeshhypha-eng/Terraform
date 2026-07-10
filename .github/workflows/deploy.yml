@@ -133,8 +133,6 @@ jobs:
     # Wait for both plan and approval (if prod) to complete before running
     environment: prod
     needs: terraform_plan
-    # Skip apply if it's production and approval was rejected; otherwise proceed
-    if: always() && (inputs.environment != 'prod' || needs.approval.result == 'success')
     runs-on: ubuntu-latest
     # Enforce environment protections and approval requirements
 
