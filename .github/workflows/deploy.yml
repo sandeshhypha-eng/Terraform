@@ -127,54 +127,17 @@ jobs:
               body: comment
             });
 
-  approval:
-    name: 'Approval Required - ${{ inputs.environment }}'
-    # Only run this job for production deployments
-    if: inputs.environment == 'prod'
-    needs: terraform_plan
-    runs-on: ubuntu-latest
-    # Leverage GitHub's environment protection rules to enforce manual approval
-    environment:
-      name: ${{ inputs.environment }}
-    
-    steps:
-      # Checkout code for consistency with other jobs (minimal requirement)
-      # Why needed: Ensures the workflow has access to repository context and can reference any required files
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Display approval requirement status and instructions to the user
-      # Why needed: Communicates to the operator that the deployment is waiting for lead approval and where to find approval controls
-      - name: Display Plan Summary
-        run: |
-          echo "## 🔒 Production Deployment - Approval Required"
-          echo ""
-          echo "**Environment**: prod"
-          echo "**Triggered by**: ${{ github.actor }}"
-          echo "**Timestamp**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          echo ""
-          echo "⏸️ **Waiting for Lead Approval...**"
-          echo ""
-          echo "Your lead must approve this deployment before it proceeds to apply."
-          echo "Check the 'Environment' section at the right to approve or reject."
-
-      # Log successful reach of approval stage for audit and troubleshooting purposes
-      # Why needed: Provides confirmation that the workflow progressed correctly to the approval gate, useful for audit trails
-      - name: Approval Status
-        run: |
-          echo "✅ Production approval stage reached"
-          echo "Workflow will continue to apply step once approved"
 
   terraform_apply:
     name: 'Terraform Apply - ${{ inputs.environment }}'
     # Wait for both plan and approval (if prod) to complete before running
+    environment: prod
     needs: [terraform_plan, approval]
     # Skip apply if it's production and approval was rejected; otherwise proceed
     if: always() && (inputs.environment != 'prod' || needs.approval.result == 'success')
     runs-on: ubuntu-latest
     # Enforce environment protections and approval requirements
-    environment:
-      name: ${{ inputs.environment }}
+
     
     steps:
       # Checkout repository code to access Terraform configurations
