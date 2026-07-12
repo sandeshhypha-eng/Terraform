@@ -72,6 +72,11 @@ locals {
     nginx   = local.use_nginx_lb
     alb     = local.use_alb
   }
+  common_tags = {
+    Environment = "dev"
+    Project     = "TerraformDemo"
+    creator = dev
+  }
 }
 
 # ============================================================================
@@ -109,6 +114,7 @@ module "network" {
   vpc_name            = "${var.environment}-vpc"
   public_subnet_1_cidr = var.public_subnet_1_cidr
   public_subnet_2_cidr = var.public_subnet_2_cidr
+  tags = (local.common_tags)
 }
 
 # ============================================================================
@@ -181,6 +187,7 @@ module "instances" {
   public_subnet_2_id    = module.network.public_subnet_2_id
   ec2_security_group_id = module.security.ec2_security_group_id
   environment           = var.environment
+  tags = (local.common_tags)
 }
 
 # ============================================================================

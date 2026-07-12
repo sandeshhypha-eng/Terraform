@@ -68,6 +68,7 @@ resource "aws_instance" "web_2" {
   instance_type = var.instance_type
   subnet_id     = var.public_subnet_2_id
   key_name      = var.key_name
+  
 
   vpc_security_group_ids = [var.ec2_security_group_id]
 
