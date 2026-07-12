@@ -64,13 +64,13 @@ variable "key_name" {
 variable "green_desired_capacity" {
   description = "Desired number of green environment web servers"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "green_min_size" {
   description = "Minimum number of green environment web servers"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "green_max_size" {
@@ -82,13 +82,13 @@ variable "green_max_size" {
 variable "blue_weight" {
   description = "Traffic percentage sent to the blue target group"
   type        = number
-  default     = 100
+  default     = 0
 }
 
 variable "green_weight" {
   description = "Traffic percentage sent to the green target group"
   type        = number
-  default     = 0
+  default     = 100
 }
 
 variable "access_logs_enabled" {
