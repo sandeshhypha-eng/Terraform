@@ -213,6 +213,9 @@ module "alb" {
   public_subnet_1_id    = module.network.public_subnet_1_id
   public_subnet_2_id    = module.network.public_subnet_2_id
   alb_security_group_id = module.security.alb_security_group_id
+  ec2_security_group_id = module.security.ec2_security_group_id
+  ami_id                = module.network.amazon_linux_2_ami_id
+  instance_type         = var.instance_type
   web_1_instance_id     = module.instances.web_1_instance_id
   web_2_instance_id     = module.instances.web_2_instance_id
   environment           = var.environment
