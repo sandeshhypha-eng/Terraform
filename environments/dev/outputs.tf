@@ -25,10 +25,6 @@ output "load_balancer_type" {
 output "nginx_lb_public_ip" {
   description = "Public IP of the Nginx load balancer"
   value       = try(module.nginx_lb[0].nginx_lb_public_ip, null)
-  precondition {
-    condition     = var.load_balancer_type == "nginx"
-    error_message = "nginx_lb outputs are only available when load_balancer_type = 'nginx'"
-  }
 }
 
 output "nginx_lb_public_dns" {
