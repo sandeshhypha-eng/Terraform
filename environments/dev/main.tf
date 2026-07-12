@@ -19,7 +19,7 @@ terraform {
   backend "s3" {
     bucket         = "git-hpha-terraform-state-v2"
     key            = "terraformv2/environments/dev/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "ap-south-1"
     encrypt        = true
     use_lockfile = true
     # S3 native locking explanation:
