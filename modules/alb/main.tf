@@ -70,7 +70,7 @@ variable "green_desired_capacity" {
 variable "green_min_size" {
   description = "Minimum number of green environment web servers"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "green_max_size" {
