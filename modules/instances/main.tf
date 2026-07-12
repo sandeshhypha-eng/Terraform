@@ -88,6 +88,13 @@ resource "aws_instance" "web_2" {
 }
 
 
+resource "aws_instance" "web_import" {
+  ami           = "ami-01edba92f9036f76e"
+  instance_type = "t3.micro"
+  subnet_id     = "subnet-09a91f4d2a56147f5"
+  key_name      = "dev"
+
+}
 // ----------------------------- OUTPUTS -----------------------------
 output "web_1_instance_id" {
   description = "ID of EC2 instance web_1"

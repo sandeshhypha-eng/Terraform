@@ -33,10 +33,6 @@ resource "aws_instance" "nginx_lb" {
     Role        = "LoadBalancer"
   }
 
-  lifecycle {
-    create_before_destroy = true
-    prevent_destroy = true 
-  }
 }
 
 # Data source to wait for instance to be running
