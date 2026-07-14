@@ -1,4 +1,4 @@
-name: Terraform Deploy
+name: Terraform Deploy infracost
 
 # Trigger: Manual workflow dispatch with environment selection
 on:
