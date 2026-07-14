@@ -89,6 +89,12 @@ jobs:
           terraform show -json tfplan > tfplan.json
         continue-on-error: true
 
+      # Run Infracost to generate cost estimate and post comment to PR
+      - uses: infracost/actions/scan@v4
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+          path: .
+
       # Store the plan artifact for 5 days to enable retrieval during the apply phase
       # Why needed: Persists the plan between jobs so terraform apply uses the exact same plan, ensuring consistency and preventing drift
       - name: Upload Plan Artifact
